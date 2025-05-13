@@ -1,29 +1,59 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import 'react-native-reanimated';
+import CustomSplashScreen from '@/assets/components/SplashScreen';
+import { ThemeProvider } from '@/assets/themes/ThemeContext';
+import * as Font from 'expo-font';
+import { Slot } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
+import React, { useCallback, useEffect, useState } from 'react';
 
-import { useColorScheme } from '@/hooks/useColorScheme';
+SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-  const [loaded] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-  });
+  const [appIsReady, setAppIsReady] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
 
-  if (!loaded) {
-    // Async font loading only occurs in development.
+  useEffect(() => {
+    async function prepare() {
+      try {
+        const regularFont = require('@/assets/fonts/Inter-Regular.ttf');
+        const boldFont = require('@/assets/fonts/Inter-Bold.ttf');
+        if (!regularFont || !boldFont) {
+          throw new Error('Font files not found at src/assets/fonts/');
+        }
+        console.log('Font paths resolved:', regularFont, boldFont);
+        await Font.loadAsync({
+          'Inter-Regular': regularFont,
+          'Inter-Bold': boldFont,
+        });
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      } catch (e) {
+        console.warn('Error loading fonts:', e);
+      } finally {
+        setAppIsReady(true);
+        await SplashScreen.hideAsync();
+      }
+    }
+    prepare();
+  }, []);
+
+  const handleSplashComplete = useCallback(() => {
+    setShowSplash(false);
+  }, []);
+
+  if (!appIsReady) {
     return null;
   }
 
+  if (showSplash) {
+    return (
+      <ThemeProvider>
+        <CustomSplashScreen onFinish={handleSplashComplete} />
+      </ThemeProvider>
+    );
+  }
+
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
-      </Stack>
-      <StatusBar style="auto" />
+    <ThemeProvider>
+      <Slot />
     </ThemeProvider>
   );
 }
